@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserData, DayLog } from '../types';
 import { updateUserData } from '../lib/storage';
 import { format } from 'date-fns';
@@ -17,6 +17,25 @@ interface YourLifeProps {
 export const YourLife: React.FC<YourLifeProps> = ({ user, logs, onUpdate }) => {
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState(user);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
 
   const avgIntention = logs.length > 0 
     ? (logs.reduce((sum, l) => sum + l.intentionScore, 0) / logs.length).toFixed(1)
@@ -119,6 +138,15 @@ export const YourLife: React.FC<YourLifeProps> = ({ user, logs, onUpdate }) => {
           >
             Amend Statistics
           </button>
+
+          {deferredPrompt && (
+            <button 
+              onClick={handleInstallClick}
+              className="w-full bg-amber text-background font-display font-bold py-4 transition-all uppercase tracking-[0.3em] text-[10px] md:text-sm mt-4"
+            >
+              Install Locally
+            </button>
+          )}
         </div>
       )}
 
